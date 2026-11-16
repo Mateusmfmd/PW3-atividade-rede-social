@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block title %}Criar conta · instantâneo{% endblock %}
+{% block main_class %}acesso{% endblock %}
+
+{% block content %}
+{% include '_acesso.html' %}
+
+<section class="acesso-form">
+    <div class="acesso-caixa">
+        <h1>Criar conta</h1>
+        <p class="acesso-sub">Leva menos de um minuto.</p>
+
+        <form method="POST" action="{{ url_for('cadastro') }}">
+            <div class="mb-3">
+                <label for="nome" class="form-label">Nome ou apelido</label>
+                <div class="campo-icone">
+                    <i class="bi bi-person"></i>
+                    <input type="text" class="form-control" id="nome" name="nome" maxlength="100" autocomplete="nickname" required autofocus>
+                </div>
+                <div class="form-text">É assim que você aparece no feed e no chat.</div>
+            </div>
+            <div class="mb-3">
+                <label for="email" class="form-label">E-mail</label>
+                <div class="campo-icone">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email" class="form-control" id="email" name="email" autocomplete="email" required>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="senha" class="form-label">Senha</label>
+                <div class="campo-icone">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" class="form-control" id="senha" name="senha" minlength="6" autocomplete="new-password" required>
+                    <button type="button" class="ver-senha" data-alvo="senha" aria-label="Mostrar senha"><i class="bi bi-eye"></i></button>
+                </div>
+                <div class="medidor" aria-hidden="true"><span id="forca"></span></div>
+                <div class="form-text" id="forca-texto">Use pelo menos 6 caracteres.</div>
+            </div>
+            <button type="submit" class="btn btn-tinta btn-lg w-100">Criar conta</button>
+        </form>
+
+        <p class="acesso-troca">Já tem conta? <a href="{{ url_for('login') }}">Entrar</a></p>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% include '_ver_senha.html' %}
+<script>
+    // Medidor simples de força da senha
+    const senha = document.getElementById('senha');
+    const barra = document.getElementById('forca');
+    const texto = document.getElementById('forca-texto');
+    senha.addEventListener('input', () => {
+        const v = senha.value;
+        let pontos = 0;
+        if (v.length >= 6) pontos++;
+        if (v.length >= 10) pontos++;
+        if (/[A-Z]/.test(v) && /[a-z]/.test(v)) pontos++;
+        if (/\d/.test(v) || /[^A-Za-z0-9]/.test(v)) pontos++;
+        const niveis = [
+            ['0%', 'Use pelo menos 6 caracteres.', ''],
+            ['25%', 'Senha fraca.', 'fraca'],
+            ['50%', 'Senha razoável.', 'media'],
+            ['75%', 'Senha boa.', 'boa'],
+            ['100%', 'Senha forte.', 'forte'],
+        ];
+        const [largura, msg, classe] = niveis[v.length < 6 ? 0 : Math.max(1, pontos)];
+        barra.style.width = largura;
+        barra.className = classe;
+        texto.textContent = msg;
+    });
+</script>
+{% endblock %}

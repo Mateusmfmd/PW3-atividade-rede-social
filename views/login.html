@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Entrar · instantâneo{% endblock %}
+{% block main_class %}acesso{% endblock %}
+
+{% block content %}
+{% include '_acesso.html' %}
+
+<section class="acesso-form">
+    <div class="acesso-caixa">
+        <h1>Entrar</h1>
+        <p class="acesso-sub">Que bom te ver de novo.</p>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="mb-3">
+                <label for="email" class="form-label">E-mail</label>
+                <div class="campo-icone">
+                    <i class="bi bi-envelope"></i>
+                    <input type="email" class="form-control" id="email" name="email" autocomplete="email" required autofocus>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="senha" class="form-label">Senha</label>
+                <div class="campo-icone">
+                    <i class="bi bi-lock"></i>
+                    <input type="password" class="form-control" id="senha" name="senha" autocomplete="current-password" required>
+                    <button type="button" class="ver-senha" data-alvo="senha" aria-label="Mostrar senha"><i class="bi bi-eye"></i></button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-tinta btn-lg w-100">Entrar</button>
+        </form>
+
+        <p class="acesso-troca">Ainda não tem conta? <a href="{{ url_for('cadastro') }}">Criar conta</a></p>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{% include '_ver_senha.html' %}
+{% endblock %}

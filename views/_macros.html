@@ -1,0 +1,10 @@
+{# Avatar: foto de perfil quando existe; senão a inicial do nome numa cor fixa por usuário.
+   Tamanhos: xs, sm, md, lg, story, xl #}
+{% macro avatar(u, tamanho='md') -%}
+    {%- set url = foto_url(u) -%}
+    {%- if url -%}
+        <img class="avatar avatar-{{ tamanho }}" src="{{ url }}" alt="" loading="lazy">
+    {%- else -%}
+        <span class="avatar avatar-{{ tamanho }}" style="--h: {{ (u.id * 47) % 360 }}" aria-hidden="true">{{ u.nome[0]|upper }}</span>
+    {%- endif -%}
+{%- endmacro %}

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block title %}Página não encontrada · instantâneo{% endblock %}
+
+{% block content %}
+<div class="vazio vazio-grande">
+    <figure class="foto-moldura moldura-vazia">
+        <div class="foto-area area-vazia"><i class="bi bi-question-lg"></i></div>
+        <figcaption class="legenda-mao">essa foto não revelou</figcaption>
+    </figure>
+    <h1>Página não encontrada</h1>
+    <p>O endereço pode estar errado ou o conteúdo foi apagado.</p>
+    <a class="btn btn-tinta" href="{{ url_for('index') }}">Voltar para o feed</a>
+</div>
+{% endblock %}

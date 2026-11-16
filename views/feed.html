@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import avatar %}
+{% block title %}Feed · instantâneo{% endblock %}
+
+{% block content %}
+<div class="layout-feed">
+
+    <!-- Coluna principal -->
+    <div class="coluna-feed">
+
+        <!-- Stories: quem postou nas últimas 24 h tem o anel colorido -->
+        <nav class="stories" aria-label="Pessoas da turma">
+            {% for u in stories %}
+                <a href="{{ url_for('perfil', id=u.id) }}" class="story {{ 'novo' if u.id in recentes }}">
+                    <span class="story-anel">{{ avatar(u, 'story') }}</span>
+                    <span class="story-nome">{{ 'Você' if u.id == eu.id else u.nome.split(' ')[0] }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+
+        <!-- Formulário de postagem -->
+        <form class="nova-foto" id="nova-foto" method="POST" action="{{ url_for('upload') }}" enctype="multipart/form-data">
+            <div class="nova-foto-topo">
+                {{ avatar(eu) }}
+                <span>No que você clicou hoje, {{ eu.nome.split(' ')[0] }}?</span>
+            </div>
+
+            <label class="escolher-foto" for="file" id="area-soltar">
+                <span class="previa-caixa" id="previa-caixa" hidden>
+                    <img id="previa" class="previa" alt="Prévia da foto escolhida">
+                    <span class="trocar-foto"><i class="bi bi-arrow-repeat"></i> Trocar foto</span>
+                </span>
+                <span id="convite" class="convite">
+                    <span class="convite-icone"><i class="bi bi-camera"></i></span>
+                    <span class="convite-titulo">Escolha uma foto ou arraste para cá</span>
+                    <small>png, jpg, jpeg ou gif, até 16 MB</small>
+                </span>
+            </label>
+            <input type="file" id="file" name="file" accept=".png,.jpg,.jpeg,.gif" class="visually-hidden" required>
+
+            <div class="linha-legenda">
+                <label for="legenda" class="visually-hidden">Legenda</label>
+                <input type="text" id="legenda" name="legenda" class="form-control" maxlength="255" placeholder="Escreva uma legenda">
+                <button type="submit" class="btn btn-tinta" id="botao-publicar"><i class="bi bi-send"></i> Publicar</button>
+            </div>
+            <small id="contador" class="contador">0/255</small>
+        </form>
+
+        <!-- Linha do tempo -->
+        {% for post in posts %}
+            {% set curtido = post.id in curtidos %}
+            <article class="post" id="post-{{ post.id }}">
+                <header class="post-autor">
+                    <a href="{{ url_for('perfil', id=post.autor.id) }}" class="post-autor-link">
+                        {{ avatar(post.autor) }}
+                        <span>
+                            <strong>{{ post.autor.nome }}</strong>
+                            <time datetime="{{ post.data_post.isoformat() }}" title="{{ post.data_post.strftime('%d/%m/%Y às %H:%M') }}">
+                                {{ post.data_post|tempo }} · {{ post.data_post.strftime('%d/%m/%Y %H:%M') }}
+                            </time>
+                        </span>
+                    </a>
+
+                    {% if post.usuario_id == eu.id %}
+                        <div class="dropdown ms-auto">
+                            <button class="botao-icone" data-bs-toggle="dropdown" aria-label="Opções da publicação"><i class="bi bi-three-dots"></i></button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <form method="POST" action="{{ url_for('excluir', id=post.id) }}" onsubmit="return confirm('Excluir esta publicação? A foto será apagada.');">
+                                        <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash"></i> Excluir publicação</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    {% endif %}
+                </header>
+
+                <figure class="foto-moldura">
+                    <div class="foto-area" data-curtir="{{ post.id }}" title="Dois cliques para curtir">
+                        <img src="{{ url_for('static', filename='uploads/' ~ post.imagem) }}"
+                             alt="{{ post.legenda or 'Foto publicada por ' ~ post.autor.nome }}" loading="lazy">
+                        <i class="bi bi-heart-fill coracao-grande" aria-hidden="true"></i>
+                    </div>
+                    <figcaption class="legenda-mao">{{ post.legenda or '' }}</figcaption>
+                </figure>
+
+                <div class="post-acoes">
+                    <form method="POST" action="{{ url_for('curtir', id=post.id) }}" class="form-curtir">
+                        <button type="submit" class="botao-curtir {{ 'curtido' if curtido }}" aria-pressed="{{ 'true' if curtido else 'false' }}" aria-label="Curtir">
+                            <i class="bi {{ 'bi-heart-fill' if curtido else 'bi-heart' }}"></i>
+                            <span class="total">{{ post.curtidas|length }}</span>
+                        </button>
+                    </form>
+                    <label for="comentario-{{ post.id }}" class="botao-acao">
+                        <i class="bi bi-chat"></i> {{ post.comentarios|length }}
+                    </label>
+                </div>
+
+                <!-- Comentários -->
+                <div class="comentarios">
+                    {% set lista = post.comentarios %}
+                    {% if lista|length > 2 %}
+                        <details>
+                            <summary>Ver os {{ lista|length }} comentários</summary>
+                            {% for c in lista[:-2] %}
+                                {% include '_comentario.html' %}
+                            {% endfor %}
+                        </details>
+                    {% endif %}
+                    {% for c in lista[-2:] %}
+                        {% include '_comentario.html' %}
+                    {% endfor %}
+
+                    <form method="POST" action="{{ url_for('comentar', id=post.id) }}" class="form-comentar">
+                        {{ avatar(eu, 'xs') }}
+                        <label for="comentario-{{ post.id }}" class="visually-hidden">Comentar</label>
+                        <input type="text" id="comentario-{{ post.id }}" name="texto" class="form-control" maxlength="300" placeholder="Comente algo" autocomplete="off" required>
+                        <button type="submit" class="btn btn-link">Comentar</button>
+                    </form>
+                </div>
+            </article>
+        {% else %}
+            <div class="vazio">
+                <span class="vazio-icone"><i class="bi bi-camera"></i></span>
+                <h2>Nenhuma foto por aqui ainda</h2>
+                <p>Publique a primeira foto da turma no formulário acima.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Barra lateral (computador) -->
+    <aside class="lateral">
+        <div class="cartao cartao-eu">
+            <div class="cartao-eu-capa" style="--h: {{ (eu.id * 47) % 360 }}"></div>
+            <a href="{{ url_for('perfil', id=eu.id) }}" class="cartao-eu-avatar">{{ avatar(eu, 'lg') }}</a>
+            <a href="{{ url_for('perfil', id=eu.id) }}" class="nome">{{ eu.nome }}</a>
+            <p>{{ eu.bio or 'Sem bio ainda.' }}</p>
+            <ul class="mini-numeros">
+                <li><strong>{{ eu.posts|length }}</strong> {{ 'foto' if eu.posts|length == 1 else 'fotos' }}</li>
+                <li><strong>{{ total_usuarios }}</strong> na turma</li>
+            </ul>
+            <a href="{{ url_for('editar_perfil') }}" class="btn btn-contorno btn-sm w-100">Editar perfil</a>
+        </div>
+
+        <div class="cartao">
+            <div class="cartao-titulo">
+                <h2>Na turma</h2>
+                <a href="{{ url_for('explorar') }}" class="link-pequeno">Ver todos</a>
+            </div>
+            <ul class="lista-membros">
+                {% for m in membros %}
+                    <li>
+                        <a href="{{ url_for('perfil', id=m.id) }}">
+                            {{ avatar(m, 'sm') }}
+                            <span class="lista-nome">
+                                <span>{{ m.nome }}{% if m.id == eu.id %} <small class="d-inline">(você)</small>{% endif %}</span>
+                                <small>{{ m.posts|length }} {{ 'foto' if m.posts|length == 1 else 'fotos' }}</small>
+                            </span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <a href="{{ url_for('chat') }}" class="cartao cartao-chat">
+            <span class="cartao-chat-icone"><i class="bi bi-chat-dots-fill"></i></span>
+            <span>
+                <strong>Chat da turma</strong>
+                <small>Converse com quem está online agora</small>
+            </span>
+            <i class="bi bi-chevron-right ms-auto"></i>
+        </a>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ---------- Prévia da imagem, arrastar e soltar ----------
+    const entrada = document.getElementById('file');
+    const previa = document.getElementById('previa');
+    const previaCaixa = document.getElementById('previa-caixa');
+    const convite = document.getElementById('convite');
+    const area = document.getElementById('area-soltar');
+
+    function mostrarPrevia() {
+        const arquivo = entrada.files[0];
+        if (!arquivo) return;
+        previa.src = URL.createObjectURL(arquivo);
+        previaCaixa.hidden = false;
+        convite.hidden = true;
+    }
+    entrada.addEventListener('change', mostrarPrevia);
+
+    ['dragenter', 'dragover'].forEach(ev => area.addEventListener(ev, e => {
+        e.preventDefault();
+        area.classList.add('arrastando');
+    }));
+    ['dragleave', 'drop'].forEach(ev => area.addEventListener(ev, e => {
+        e.preventDefault();
+        area.classList.remove('arrastando');
+    }));
+    area.addEventListener('drop', e => {
+        if (e.dataTransfer.files.length) {
+            entrada.files = e.dataTransfer.files;
+            mostrarPrevia();
+        }
+    });
+
+    // Botão "Publicar" mostra que está enviando
+    document.getElementById('nova-foto').addEventListener('submit', () => {
+        const botao = document.getElementById('botao-publicar');
+        botao.disabled = true;
+        botao.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Publicando…';
+    });
+
+    // Vindo de "Nova foto" no menu: destaca a área de escolher a foto
+    if (location.hash === '#nova-foto') {
+        area.classList.add('destaque');
+        setTimeout(() => area.classList.remove('destaque'), 1600);
+    }
+
+    // ---------- Contador de caracteres da legenda ----------
+    const legenda = document.getElementById('legenda');
+    const contador = document.getElementById('contador');
+    legenda.addEventListener('input', () => contador.textContent = `${legenda.value.length}/255`);
+
+    // ---------- Curtir sem recarregar a página ----------
+    async function curtir(form) {
+        const botao = form.querySelector('.botao-curtir');
+        const resp = await fetch(form.action, { method: 'POST', headers: { 'X-Requested-With': 'fetch' } });
+        if (!resp.ok) return;
+        const dados = await resp.json();
+        botao.classList.toggle('curtido', dados.curtido);
+        botao.setAttribute('aria-pressed', dados.curtido);
+        botao.querySelector('i').className = 'bi ' + (dados.curtido ? 'bi-heart-fill' : 'bi-heart');
+        botao.querySelector('.total').textContent = dados.total;
+        if (dados.curtido) {
+            botao.classList.remove('pulso');
+            void botao.offsetWidth;          // reinicia a animação
+            botao.classList.add('pulso');
+        }
+    }
+
+    document.querySelectorAll('.form-curtir').forEach(form => {
+        form.addEventListener('submit', e => {
+            e.preventDefault();
+            curtir(form);
+        });
+    });
+
+    // Duplo clique na foto: curte e mostra o coração grande
+    document.querySelectorAll('[data-curtir]').forEach(foto => {
+        foto.addEventListener('dblclick', () => {
+            const post = foto.closest('.post');
+            const coracao = foto.querySelector('.coracao-grande');
+            coracao.classList.remove('mostrar');
+            void coracao.offsetWidth;
+            coracao.classList.add('mostrar');
+            if (!post.querySelector('.botao-curtir').classList.contains('curtido')) {
+                curtir(post.querySelector('.form-curtir'));
+            }
+        });
+    });
+</script>
+{% endblock %}

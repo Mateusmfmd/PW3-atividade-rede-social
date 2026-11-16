@@ -1,0 +1,12 @@
+<script>
+    // Botão de olho: mostra/oculta a senha
+    document.querySelectorAll('.ver-senha').forEach(botao => {
+        botao.addEventListener('click', () => {
+            const campo = document.getElementById(botao.dataset.alvo);
+            const mostrar = campo.type === 'password';
+            campo.type = mostrar ? 'text' : 'password';
+            botao.innerHTML = mostrar ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+            botao.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+        });
+    });
+</script>

@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import avatar %}
+{% block title %}Chat · instantâneo{% endblock %}
+{% block main_class %}app-conteudo conteudo-chat{% endblock %}
+
+{% block content %}
+<div class="chat-layout">
+
+    <section class="chat">
+        <header class="chat-topo">
+            <span class="chat-topo-icone"><i class="bi bi-people-fill"></i></span>
+            <div>
+                <h1>Chat da turma</h1>
+                <p>Você aparece como <strong>{{ session.usuario_nome }}</strong></p>
+            </div>
+            <span class="conexao" id="conexao"><i class="bi bi-circle-fill"></i> <span>Conectando…</span></span>
+        </header>
+
+        <div id="mensagens" class="chat-mensagens" aria-live="polite" data-ultimo="{{ historico[-1].usuario_id if historico else '' }}">
+            {% if historico %}
+                <p class="chat-status">Últimas mensagens</p>
+                {% for m in historico %}
+                    {% set seguida = loop.previtem and loop.previtem.usuario_id == m.usuario_id %}
+                    <div class="balao-linha {{ 'minha' if m.usuario_id == eu.id }} {{ 'seguida' if seguida }}">
+                        {{ avatar(m.autor, 'sm') }}
+                        <div class="balao">
+                            <div class="balao-topo"><strong>{{ m.autor.nome }}</strong></div>
+                            <p>{{ m.texto }} <time>{{ m.data.strftime('%H:%M') }}</time></p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="chat-vazio">
+                    <span class="vazio-icone"><i class="bi bi-chat-heart"></i></span>
+                    <p>Ninguém falou nada ainda. Mande a primeira mensagem.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <p class="digitando" id="digitando" aria-live="polite"></p>
+
+        <div class="chat-envio">
+            <div class="emoji-caixa">
+                <button type="button" class="botao-icone" id="abrir-emojis" aria-label="Inserir emoji" aria-expanded="false"><i class="bi bi-emoji-smile"></i></button>
+                <div class="emojis" id="emojis" hidden>
+                    {% for e in ['😀','😂','😍','🥹','😎','🤔','😮','😢','👍','👏','🙌','🔥','❤️','✨','🎉','📸'] %}
+                        <button type="button" class="emoji" aria-label="{{ e }}">{{ e }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            <label for="texto" class="visually-hidden">Mensagem</label>
+            <input type="text" id="texto" class="form-control" placeholder="Escreva uma mensagem" maxlength="500" autocomplete="off">
+            <button id="enviar" class="btn btn-tinta" aria-label="Enviar"><i class="bi bi-send-fill"></i> <span>Enviar</span></button>
+        </div>
+    </section>
+
+    <!-- Quem está online -->
+    <aside class="chat-online">
+        <h2>Online agora <span class="contagem" id="total-online">0</span></h2>
+        <ul id="lista-online" class="lista-membros"></ul>
+        <p class="chat-dica"><i class="bi bi-bell"></i> Com a aba em segundo plano, você ouve um som e o título pisca quando chega mensagem.</p>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script>
+    const meuId = {{ eu.id|tojson }};
+    const socket = io();
+    const caixa = document.getElementById('mensagens');
+    const campo = document.getElementById('texto');
+    const botao = document.getElementById('enviar');
+    const conexao = document.getElementById('conexao');
+    let ultimoAutor = caixa.dataset.ultimo ? Number(caixa.dataset.ultimo) : null;
+    caixa.scrollTop = caixa.scrollHeight;
+
+    // Cria o avatar (foto ou inicial) no navegador
+    function criarAvatar(u) {
+        let el;
+        if (u.foto) {
+            el = document.createElement('img');
+            el.src = u.foto;
+            el.alt = '';
+        } else {
+            el = document.createElement('span');
+            el.textContent = u.nome.charAt(0).toUpperCase();
+            el.style.setProperty('--h', (u.id * 47) % 360);
+            el.setAttribute('aria-hidden', 'true');
+        }
+        el.classList.add('avatar', 'avatar-sm');
+        return el;
+    }
+
+    // ---------- Conexão ----------
+    function estadoConexao(ok, texto) {
+        conexao.classList.toggle('ok', ok);
+        conexao.querySelector('span').textContent = texto;
+    }
+    socket.on('connect', () => {
+        estadoConexao(true, 'Conectado');
+        socket.emit('join', {});   // avisa os outros que entrou
+    });
+    socket.on('disconnect', () => estadoConexao(false, 'Reconectando…'));
+
+    // ---------- Avisos de entrada e saída ----------
+    socket.on('status', (data) => {
+        document.querySelector('.chat-vazio')?.remove();
+        const p = document.createElement('p');
+        p.className = 'chat-status';
+        p.textContent = data.msg;
+        adicionar(p);
+        ultimoAutor = null;
+    });
+
+    // ---------- Lista de quem está online ----------
+    socket.on('online', (lista) => {
+        const ul = document.getElementById('lista-online');
+        ul.innerHTML = '';
+        lista.forEach(u => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = `/perfil/${u.id}`;
+            const foto = document.createElement('span');
+            foto.className = 'avatar-online';
+            foto.append(criarAvatar(u));
+            const nome = document.createElement('span');
+            nome.textContent = u.nome + (u.id === meuId ? ' (você)' : '');
+            a.append(foto, nome);
+            li.append(a);
+            ul.append(li);
+        });
+        document.getElementById('total-online').textContent = lista.length;
+    });
+
+    // ---------- Mensagens (broadcast do servidor) ----------
+    socket.on('showmsg', (data) => {
+        document.querySelector('.chat-vazio')?.remove();
+        const minha = data.autor.id === meuId;
+
+        const linha = document.createElement('div');
+        linha.className = 'balao-linha nova' + (minha ? ' minha' : '') + (ultimoAutor === data.autor.id ? ' seguida' : '');
+        ultimoAutor = data.autor.id;
+
+        const balao = document.createElement('div');
+        balao.className = 'balao';
+
+        const topo = document.createElement('div');
+        topo.className = 'balao-topo';
+        const nome = document.createElement('strong');
+        nome.textContent = data.usuario;
+        topo.append(nome);
+
+        const texto = document.createElement('p');
+        texto.textContent = data.msg + ' ';   // textContent evita injeção de HTML
+        const hora = document.createElement('time');
+        hora.textContent = data.hora;
+        texto.append(hora);
+
+        balao.append(topo, texto);
+        linha.append(criarAvatar(data.autor), balao);
+        adicionar(linha);
+
+        digitandoEl.textContent = '';
+        if (!minha) notificar(data.usuario);
+    });
+
+    function adicionar(elemento) {
+        const noFim = caixa.scrollHeight - caixa.scrollTop - caixa.clientHeight < 120;
+        caixa.appendChild(elemento);
+        if (noFim) caixa.scrollTop = caixa.scrollHeight;
+    }
+
+    // ---------- Enviar (botão ou Enter) ----------
+    function enviar() {
+        const msg = campo.value.trim();
+        if (!msg) return;
+        socket.emit('msg', { msg: msg });
+        campo.value = '';
+        campo.focus();
+        caixa.scrollTop = caixa.scrollHeight;
+    }
+
+    botao.addEventListener('click', enviar);
+    campo.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            enviar();
+        }
+    });
+
+    // ---------- Emojis ----------
+    const abrirEmojis = document.getElementById('abrir-emojis');
+    const painelEmojis = document.getElementById('emojis');
+    abrirEmojis.addEventListener('click', () => {
+        painelEmojis.hidden = !painelEmojis.hidden;
+        abrirEmojis.setAttribute('aria-expanded', !painelEmojis.hidden);
+    });
+    painelEmojis.addEventListener('click', (e) => {
+        const emoji = e.target.closest('.emoji');
+        if (!emoji) return;
+        const pos = campo.selectionStart ?? campo.value.length;
+        campo.value = campo.value.slice(0, pos) + emoji.textContent + campo.value.slice(pos);
+        campo.focus();
+        campo.selectionStart = campo.selectionEnd = pos + emoji.textContent.length;
+    });
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.emoji-caixa')) {
+            painelEmojis.hidden = true;
+            abrirEmojis.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    // ---------- "Fulano está digitando…" ----------
+    const digitandoEl = document.getElementById('digitando');
+    let ultimoAviso = 0;
+    let apagarDigitando = null;
+
+    campo.addEventListener('input', () => {
+        const agora = Date.now();
+        if (agora - ultimoAviso > 1500) {
+            socket.emit('digitando', {});
+            ultimoAviso = agora;
+        }
+    });
+
+    socket.on('digitando', (data) => {
+        digitandoEl.innerHTML = '<span class="pontinhos"><i></i><i></i><i></i></span> ';
+        digitandoEl.append(`${data.nome} está digitando`);
+        clearTimeout(apagarDigitando);
+        apagarDigitando = setTimeout(() => digitandoEl.textContent = '', 3000);
+    });
+
+    // ---------- Notificação: som curto e título piscando ----------
+    const tituloOriginal = document.title;
+    let naoLidas = 0;
+    let piscando = null;
+
+    function notificar(nome) {
+        tocarSom();
+        if (document.hasFocus()) return;
+        naoLidas++;
+        clearInterval(piscando);
+        let alterna = false;
+        piscando = setInterval(() => {
+            document.title = alterna ? `(${naoLidas}) ${tituloOriginal}` : `💬 ${nome} mandou mensagem`;
+            alterna = !alterna;
+        }, 1000);
+    }
+
+    window.addEventListener('focus', () => {
+        clearInterval(piscando);
+        piscando = null;
+        naoLidas = 0;
+        document.title = tituloOriginal;
+    });
+
+    function tocarSom() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            [880, 1320].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const ganho = ctx.createGain();
+                const inicio = ctx.currentTime + i * 0.09;
+                osc.frequency.value = freq;
+                ganho.gain.setValueAtTime(0.05, inicio);
+                ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.18);
+                osc.connect(ganho).connect(ctx.destination);
+                osc.start(inicio);
+                osc.stop(inicio + 0.2);
+            });
+        } catch (e) { /* navegador sem áudio */ }
+    }
+</script>
+{% endblock %}

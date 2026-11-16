@@ -1,0 +1,5 @@
+<p class="comentario">
+    <a href="{{ url_for('perfil', id=c.autor.id) }}">{{ c.autor.nome }}</a>
+    {{ c.texto }}
+    <time title="{{ c.data.strftime('%d/%m/%Y às %H:%M') }}">{{ c.data|tempo }}</time>
+</p>

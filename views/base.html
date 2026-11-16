@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}instantâneo{% endblock %}</title>
+    <!-- Aplica o tema salvo antes de desenhar a página (evita piscar) -->
+    <script>
+        try { document.documentElement.dataset.bsTheme = localStorage.getItem('tema') || 'light'; } catch (e) {}
+    </script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='3' width='26' height='26' rx='3' fill='%23fff' stroke='%231F2340' stroke-width='2'/><rect x='7' y='7' width='18' height='14' fill='%231F2340'/><circle cx='22' cy='10' r='3' fill='%23FFD23F'/></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    {% from '_macros.html' import avatar %}
+
+    <!-- Mensagens flash como toasts -->
+    {% set icones = {'success': 'bi-check-circle-fill', 'danger': 'bi-x-circle-fill', 'warning': 'bi-exclamation-triangle-fill', 'info': 'bi-info-circle-fill'} %}
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        {% with mensagens = get_flashed_messages(with_categories=true) %}
+            {% for categoria, mensagem in mensagens %}
+                {% set cat = categoria if categoria in icones else 'info' %}
+                <div class="toast aviso aviso-{{ cat }}" role="status" aria-live="polite" data-bs-delay="4000">
+                    <div class="aviso-corpo">
+                        <i class="bi {{ icones[cat] }}"></i>
+                        <span>{{ mensagem }}</span>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Fechar"></button>
+                    </div>
+                    <div class="aviso-tempo"></div>
+                </div>
+            {% endfor %}
+        {% endwith %}
+    </div>
+
+    {% if eu %}
+    <div class="app">
+        <!-- Menu lateral (computador) -->
+        <aside class="menu-lateral">
+            <a class="marca" href="{{ url_for('feed') }}">instantâneo<span class="marca-flash" aria-hidden="true"></span></a>
+            <a class="marca-mini" href="{{ url_for('feed') }}" aria-label="instantâneo"><span class="marca-flash"></span></a>
+
+            <nav class="menu-links" aria-label="Navegação principal">
+                <a class="menu-link {{ 'ativo' if request.endpoint == 'feed' }}" href="{{ url_for('feed') }}">
+                    <i class="bi {{ 'bi-house-fill' if request.endpoint == 'feed' else 'bi-house' }}"></i><span>Feed</span>
+                </a>
+                <a class="menu-link {{ 'ativo' if request.endpoint == 'explorar' }}" href="{{ url_for('explorar') }}">
+                    <i class="bi {{ 'bi-compass-fill' if request.endpoint == 'explorar' else 'bi-compass' }}"></i><span>Explorar</span>
+                </a>
+                <a class="menu-link {{ 'ativo' if request.endpoint == 'chat' }}" href="{{ url_for('chat') }}">
+                    <i class="bi {{ 'bi-chat-dots-fill' if request.endpoint == 'chat' else 'bi-chat-dots' }}"></i><span>Chat</span>
+                </a>
+                <a class="menu-link {{ 'ativo' if request.endpoint in ['perfil', 'editar_perfil'] and (not usuario or usuario.id == eu.id) }}" href="{{ url_for('perfil', id=eu.id) }}">
+                    {{ avatar(eu, 'xs') }}<span>Perfil</span>
+                </a>
+            </nav>
+
+            <a class="btn btn-tinta menu-publicar" href="{{ url_for('feed') }}#nova-foto">
+                <i class="bi bi-plus-lg"></i><span>Nova foto</span>
+            </a>
+
+            <div class="menu-rodape">
+                <button type="button" class="menu-link alternar-tema" aria-label="Alternar tema claro ou escuro">
+                    <i class="bi bi-moon-stars"></i><span>Tema escuro</span>
+                </button>
+                <div class="dropup">
+                    <button class="menu-conta" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Menu da conta">
+                        {{ avatar(eu, 'sm') }}
+                        <span class="menu-conta-nome">
+                            <strong>{{ eu.nome }}</strong>
+                            <small>{{ eu.email }}</small>
+                        </span>
+                        <i class="bi bi-three-dots"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('perfil', id=eu.id) }}"><i class="bi bi-person"></i> Meu perfil</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('editar_perfil') }}"><i class="bi bi-pencil"></i> Editar perfil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> Sair</a></li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Topo (celular) -->
+        <header class="topo-celular">
+            <a class="marca" href="{{ url_for('feed') }}">instantâneo<span class="marca-flash" aria-hidden="true"></span></a>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="botao-icone alternar-tema" aria-label="Alternar tema claro ou escuro"><i class="bi bi-moon-stars"></i></button>
+                <a class="botao-icone" href="{{ url_for('logout') }}" aria-label="Sair"><i class="bi bi-box-arrow-right"></i></a>
+            </div>
+        </header>
+
+    {% endif %}
+
+        <main class="{% block main_class %}app-conteudo{% endblock %}">
+            {% block content %}{% endblock %}
+        </main>
+
+    {% if eu %}
+        <!-- Barra inferior (celular) -->
+        <nav class="barra-celular" aria-label="Navegação">
+            <a href="{{ url_for('feed') }}" class="{{ 'ativo' if request.endpoint == 'feed' }}" aria-label="Feed"><i class="bi {{ 'bi-house-fill' if request.endpoint == 'feed' else 'bi-house' }}"></i></a>
+            <a href="{{ url_for('explorar') }}" class="{{ 'ativo' if request.endpoint == 'explorar' }}" aria-label="Explorar"><i class="bi {{ 'bi-compass-fill' if request.endpoint == 'explorar' else 'bi-compass' }}"></i></a>
+            <a href="{{ url_for('feed') }}#nova-foto" class="publicar" aria-label="Nova foto"><i class="bi bi-plus-lg"></i></a>
+            <a href="{{ url_for('chat') }}" class="{{ 'ativo' if request.endpoint == 'chat' }}" aria-label="Chat"><i class="bi {{ 'bi-chat-dots-fill' if request.endpoint == 'chat' else 'bi-chat-dots' }}"></i></a>
+            <a href="{{ url_for('perfil', id=eu.id) }}" class="{{ 'ativo' if request.endpoint in ['perfil', 'editar_perfil'] }}" aria-label="Perfil">{{ avatar(eu, 'xs') }}</a>
+        </nav>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toasts de flash
+        document.querySelectorAll('.toast').forEach(t => bootstrap.Toast.getOrCreateInstance(t).show());
+
+        // Tema claro/escuro guardado no navegador
+        const botoesTema = document.querySelectorAll('.alternar-tema');
+        function atualizarBotoesTema() {
+            const escuro = document.documentElement.dataset.bsTheme === 'dark';
+            botoesTema.forEach(b => {
+                b.querySelector('i').className = 'bi ' + (escuro ? 'bi-sun' : 'bi-moon-stars');
+                const rotulo = b.querySelector('span');
+                if (rotulo) rotulo.textContent = escuro ? 'Tema claro' : 'Tema escuro';
+            });
+        }
+        atualizarBotoesTema();
+        botoesTema.forEach(b => b.addEventListener('click', () => {
+            const novo = document.documentElement.dataset.bsTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.bsTheme = novo;
+            try { localStorage.setItem('tema', novo); } catch (e) {}
+            atualizarBotoesTema();
+        }));
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

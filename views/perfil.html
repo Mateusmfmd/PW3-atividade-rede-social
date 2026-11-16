@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import avatar %}
+{% block title %}{{ usuario.nome }} · instantâneo{% endblock %}
+
+{% block content %}
+<div class="perfil">
+    <header class="perfil-topo">
+        <div class="perfil-capa" style="--h: {{ (usuario.id * 47) % 360 }}"></div>
+        <div class="perfil-linha">
+            <div class="perfil-avatar">{{ avatar(usuario, 'xl') }}</div>
+            <div class="perfil-acoes">
+                {% if usuario.id == eu.id %}
+                    <a href="{{ url_for('editar_perfil') }}" class="btn btn-contorno btn-sm"><i class="bi bi-pencil"></i> Editar perfil</a>
+                {% else %}
+                    <a href="{{ url_for('chat') }}" class="btn btn-tinta btn-sm"><i class="bi bi-chat-dots"></i> Conversar no chat</a>
+                {% endif %}
+            </div>
+        </div>
+        <h1>{{ usuario.nome }}</h1>
+        {% if usuario.bio %}<p class="perfil-bio">{{ usuario.bio }}</p>{% endif %}
+
+        <ul class="perfil-numeros">
+            <li><strong>{{ posts|length }}</strong><span>{{ 'foto' if posts|length == 1 else 'fotos' }}</span></li>
+            <li><strong>{{ total_curtidas }}</strong><span>{{ 'curtida recebida' if total_curtidas == 1 else 'curtidas recebidas' }}</span></li>
+            <li><strong>{{ usuario.criado_em.strftime('%m/%Y') if usuario.criado_em else '—' }}</strong><span>na turma desde</span></li>
+        </ul>
+    </header>
+
+    {% if posts %}
+        <div class="grade">
+            {% for post in posts %}
+                <a href="{{ url_for('feed') }}#post-{{ post.id }}" class="grade-item">
+                    <img src="{{ url_for('static', filename='uploads/' ~ post.imagem) }}" alt="{{ post.legenda or 'Foto de ' ~ usuario.nome }}" loading="lazy">
+                    <span class="grade-info">
+                        <span class="grade-numeros">
+                            <span><i class="bi bi-heart-fill"></i> {{ post.curtidas|length }}</span>
+                            <span><i class="bi bi-chat-fill"></i> {{ post.comentarios|length }}</span>
+                        </span>
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="vazio">
+            <span class="vazio-icone"><i class="bi bi-camera"></i></span>
+            {% if usuario.id == eu.id %}
+                <h2>Você ainda não publicou nenhuma foto</h2>
+                <p>A primeira foto que você publicar aparece aqui.</p>
+                <a href="{{ url_for('feed') }}#nova-foto" class="btn btn-tinta">Publicar a primeira</a>
+            {% else %}
+                <h2>{{ usuario.nome }} ainda não publicou nenhuma foto</h2>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

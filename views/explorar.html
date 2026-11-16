@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import avatar %}
+{% block title %}Explorar · instantâneo{% endblock %}
+
+{% block content %}
+<div class="explorar">
+    <header class="pagina-topo">
+        <h1>Explorar</h1>
+        <p>Todas as fotos e todas as pessoas da turma.</p>
+    </header>
+
+    <!-- Busca de pessoas -->
+    <section class="cartao busca-pessoas">
+        <div class="campo-icone">
+            <i class="bi bi-search"></i>
+            <label for="busca" class="visually-hidden">Buscar pessoas</label>
+            <input type="search" id="busca" class="form-control" placeholder="Buscar pessoas pelo nome" autocomplete="off">
+        </div>
+        <ul class="pessoas" id="pessoas">
+            {% for u in usuarios %}
+                <li data-nome="{{ u.nome|lower }}">
+                    <a href="{{ url_for('perfil', id=u.id) }}">
+                        {{ avatar(u, 'lg') }}
+                        <strong>{{ u.nome }}</strong>
+                        <small>{{ u.posts|length }} {{ 'foto' if u.posts|length == 1 else 'fotos' }}</small>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+        <p class="sem-resultado" id="sem-resultado" hidden>Ninguém com esse nome na turma.</p>
+    </section>
+
+    <!-- Grade com todas as fotos -->
+    {% if posts %}
+        <div class="grade grade-explorar">
+            {% for post in posts %}
+                <a href="{{ url_for('feed') }}#post-{{ post.id }}" class="grade-item {{ 'grande' if loop.index0 % 7 == 0 }}">
+                    <img src="{{ url_for('static', filename='uploads/' ~ post.imagem) }}" alt="{{ post.legenda or 'Foto de ' ~ post.autor.nome }}" loading="lazy">
+                    <span class="grade-info">
+                        <span class="grade-autor">{{ avatar(post.autor, 'xs') }} {{ post.autor.nome }}</span>
+                        <span class="grade-numeros">
+                            <span><i class="bi bi-heart-fill"></i> {{ post.curtidas|length }}</span>
+                            <span><i class="bi bi-chat-fill"></i> {{ post.comentarios|length }}</span>
+                        </span>
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="vazio">
+            <span class="vazio-icone"><i class="bi bi-images"></i></span>
+            <h2>Ainda não tem fotos</h2>
+            <p>Quando alguém publicar, as fotos aparecem aqui.</p>
+            <a href="{{ url_for('feed') }}#nova-foto" class="btn btn-tinta">Publicar uma foto</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Filtra as pessoas enquanto digita
+    const busca = document.getElementById('busca');
+    const itens = document.querySelectorAll('#pessoas li');
+    busca.addEventListener('input', () => {
+        const termo = busca.value.trim().toLowerCase();
+        let visiveis = 0;
+        itens.forEach(li => {
+            const mostra = li.dataset.nome.includes(termo);
+            li.hidden = !mostra;
+            if (mostra) visiveis++;
+        });
+        document.getElementById('sem-resultado').hidden = visiveis > 0;
+    });
+</script>
+{% endblock %}
